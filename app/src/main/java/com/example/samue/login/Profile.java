@@ -35,10 +35,17 @@ import com.pubnub.api.PubnubException;
 
 import org.json.JSONException;
 import org.json.JSONObject;
+import org.webrtc.MediaStream;
+import org.webrtc.PeerConnection;
+import org.webrtc.PeerConnectionFactory;
+import org.webrtc.VideoRendererGui;
 
 import java.util.ArrayList;
 import java.util.List;
 
+import me.kevingleason.pnwebrtc.PnPeer;
+import me.kevingleason.pnwebrtc.PnRTCClient;
+import me.kevingleason.pnwebrtc.PnRTCListener;
 import util.Constants;
 
 public class Profile extends AppCompatActivity {
@@ -51,12 +58,15 @@ FriendsAdapter adapter;
 ArrayList<Friends> al_friends;
 DatabaseHelper mDatabaseHelper;
 
+    public static final String LOCAL_MEDIA_STREAM_ID = "localStreamPN";
+    private PnRTCClient pnRTCClient;
     private Pubnub mPubNub;
     public String username;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_profile);
+        this.username = getIntent().getExtras().getString("user");
         mDatabaseHelper = new DatabaseHelper(this);
         friends_list = (ListView) findViewById(R.id.friends_list);
 
@@ -65,15 +75,35 @@ DatabaseHelper mDatabaseHelper;
         friends_list.setOnItemClickListener(new AdapterView.OnItemClickListener() {
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
-                String name = al_friends.get(position).getNombre();
-                Toast.makeText(getApplicationContext(), name, Toast.LENGTH_SHORT).show(); //TODO cuando hacemos click en uno comienza el mensaje al canal mediante PubNub
+                final String connectTo = al_friends.get(position).getNombre();
+                String userCall = connectTo + Constants.STDBY_SUFFIX;
+                //Toast.makeText(getApplicationContext(), name, Toast.LENGTH_SHORT).show(); //TODO cuando hacemos click en uno comienza el mensaje al canal mediante PubNub
+                JSONObject jsonCall = new JSONObject();
+                try {
+                    jsonCall.put(Constants.JSON_CALL_USER, username);
+                    mPubNub.publish(userCall, jsonCall, new Callback() {
+                        @Override
+                        public void successCallback(String channel, Object message) { //TODO conectamos nosotros al otro
+                            Log.d("MA-dCall", "SUCCESS: " + message.toString());
+                            //Toast.makeText(getBaseContext(), "me han contestado", Toast.LENGTH_LONG).show();
+                            /*Intent intent = new Intent(Profile.this, Recursos.class);
+                            intent.putExtra("user_name", username);
+                            intent.putExtra("call_user", connectTo);
+                            startActivity(intent);*/
+
+                            connectPeer(connectTo, true);
+                        }
+                    });
+                } catch (JSONException e) {
+                    e.printStackTrace();
+                }
             }
         });
 
         Toolbar myToolbar = (Toolbar) findViewById(R.id.my_toolbar);
         setSupportActionBar(myToolbar);
         getSupportActionBar().setTitle(getIntent().getExtras().getString("user"));
-        this.username = getIntent().getExtras().getString("user");
+
 
         fab = (FloatingActionButton) findViewById(R.id.fab);
 
@@ -81,28 +111,6 @@ DatabaseHelper mDatabaseHelper;
             @Override
             public void onClick(View v) {
 
-            }
-        });*/
-
-      /*  txt = (TextView) findViewById(R.id.josue);
-
-        txt.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                final String callNumStdBy = txt.getText().toString() + Constants.STDBY_SUFFIX;
-                JSONObject jsonCall = new JSONObject();
-                try {
-                    jsonCall.put(Constants.JSON_CALL_USER, username);
-                    mPubNub.publish(callNumStdBy, jsonCall, new Callback() {
-                        @Override
-                        public void successCallback(String channel, Object message) {
-                            Log.d("MA-dCall", "SUCCESS: " + message.toString());
-                            //Toast.makeText(getBaseContext(), "me han contestado", Toast.LENGTH_LONG).show();
-                        }
-                    });
-                } catch (JSONException e) {
-                    e.printStackTrace();
-                }
             }
         });*/
         initPubNub();
@@ -116,15 +124,19 @@ DatabaseHelper mDatabaseHelper;
             this.mPubNub.subscribe(stdbyChannel, new Callback(){ //creamos nuestro canal y nos quedamos en stand-by esperando alguna conexión
                 @Override
                 public void successCallback(String channel, Object message) { //despierta cuando alguien se conecta a nuestro canal y responde con ACK
-                    Log.d("MA-success", "MESSAGE: " + message.toString());
+                    Log.v("MA-success", "MESSAGE: " + message.toString());
                     if (!(message instanceof JSONObject)) return; // Ignore if not JSONObject
                     JSONObject jsonMsg = (JSONObject) message;
-                    try { //TODO manejar las distintas peticiones de otros dependiendo del tipo de mensaje recibido
+                    try { //TODO conectar con el peer que envió el SDP
                         if (!jsonMsg.has(Constants.JSON_CALL_USER)) return;
                         String user = jsonMsg.getString(Constants.JSON_CALL_USER);
                         // Consider Accept/Reject call here
-                        //Toast.makeText(getBaseContext(), "user_call: " + user, Toast.LENGTH_LONG).show();
                         //intent.putExtra(Constants.JSON_CALL_USER, user);
+                        /*Intent intent = new Intent(Profile.this, Recursos.class);
+                        intent.putExtra("user_name", username);
+                        intent.putExtra("call_user", user); //TODO podriamos pasar una variable que indique que pasa lo que necesite y vuelve a la actividad
+                        startActivity(intent);*/
+                        connectPeer("", false);
 
                     } catch (JSONException e) {
                         e.printStackTrace();
@@ -192,5 +204,83 @@ DatabaseHelper mDatabaseHelper;
         }
         adapter = new FriendsAdapter(this, al_friends);
         friends_list.setAdapter(adapter);
+    }
+
+    private void connectPeer(String connectTo, boolean call){
+        PeerConnectionFactory.initializeAndroidGlobals(
+                getApplicationContext(),  // Context
+                true,  // Audio Enabled
+                true,  // Video Enabled
+                true,  // Hardware Acceleration Enabled
+                VideoRendererGui.getEGLContext()); // Render EGL Context
+
+        PeerConnectionFactory pcFactory = new PeerConnectionFactory();
+        this.pnRTCClient = new PnRTCClient(Constants.PUB_KEY, Constants.SUB_KEY, this.username);
+
+        MediaStream mediaStream = pcFactory.createLocalMediaStream(LOCAL_MEDIA_STREAM_ID);
+
+        this.pnRTCClient.attachRTCListener(new myRTCListener());
+        this.pnRTCClient.attachLocalMediaStream(mediaStream);
+
+        this.pnRTCClient.listenOn(this.username);
+
+        if(call){
+            this.pnRTCClient.connect(connectTo);
+
+           try{
+               Thread.sleep(2000);
+           } catch(Exception e){
+               e.printStackTrace();
+           }
+            JSONObject msg = new JSONObject();
+            try{
+                msg.put("name", "Josue Pradas");
+                msg.put("msg", "HOLA MUNDO");
+
+                this.pnRTCClient.transmit(connectTo, msg);
+            }catch(JSONException e){
+                e.printStackTrace();
+            }
+
+            //this.pnRTCClient.closeConnection(connectTo);
+
+        }
+    }
+
+    private class myRTCListener extends PnRTCListener{
+        @Override
+        public void onPeerConnectionClosed(PnPeer peer) {
+            super.onPeerConnectionClosed(peer);
+        }
+
+        @Override
+        public void onLocalStream(MediaStream localStream) {
+            super.onLocalStream(localStream);
+        }
+
+        public void onConnected(String userId){
+            Log.d("Md-a", "connectado a: " + userId);
+        }
+
+        @Override
+        public void onMessage(PnPeer peer, Object message) {
+            if (!(message instanceof JSONObject)) return; //Ignore if not JSONObject
+            JSONObject jsonMsg = (JSONObject) message;
+            try {
+                final String user = jsonMsg.getString("name");
+                final String text = jsonMsg.getString("msg");
+
+                Profile.this.runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        Toast.makeText(Profile.this,user + " dice " + text,Toast.LENGTH_SHORT).show();
+                    }
+                });
+                //Log.d("Md-a", user + " : " + text);
+            } catch (JSONException e){
+                e.printStackTrace();
+            }
+
+        }
     }
 }
