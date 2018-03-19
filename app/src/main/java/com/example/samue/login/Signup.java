@@ -146,6 +146,8 @@ public class Signup extends AppCompatActivity {
         if(af.isFile()){
           valid = false;
           user.setError("User already exists");
+        }else{
+            File shared = new File("/data/data/com.example.samue.login/files/shared_stuff.txt");
         }
 
         return valid;

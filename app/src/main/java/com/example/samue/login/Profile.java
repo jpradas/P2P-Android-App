@@ -276,7 +276,6 @@ DatabaseHelper mDatabaseHelper;
                         Toast.makeText(Profile.this,user + " dice " + text,Toast.LENGTH_SHORT).show();
                     }
                 });
-                //Log.d("Md-a", user + " : " + text);
             } catch (JSONException e){
                 e.printStackTrace();
             }
