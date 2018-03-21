@@ -115,6 +115,7 @@ private TextView signup;
                                 }
                             }, 2000);
                 }
+                fin.close();
             }else{
                 new android.os.Handler().postDelayed(
                         new Runnable() {
@@ -127,6 +128,7 @@ private TextView signup;
                             }
                         }, 2000);
             }
+
         }catch(Exception ex){
 
         }
@@ -142,6 +144,7 @@ private TextView signup;
         Intent intent = new Intent(MainActivity.this, Profile.class);
         intent.putExtra("user", user.getText().toString());
         startActivity(intent);
+        finish();
     }
 
     private boolean validate(){

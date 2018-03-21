@@ -40,6 +40,8 @@ import org.webrtc.PeerConnection;
 import org.webrtc.PeerConnectionFactory;
 import org.webrtc.VideoRendererGui;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -76,27 +78,7 @@ DatabaseHelper mDatabaseHelper;
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                 final String connectTo = al_friends.get(position).getNombre();
-                String userCall = connectTo + Constants.STDBY_SUFFIX;
-                //Toast.makeText(getApplicationContext(), name, Toast.LENGTH_SHORT).show(); //TODO cuando hacemos click en uno comienza el mensaje al canal mediante PubNub
-                JSONObject jsonCall = new JSONObject();
-                try {
-                    jsonCall.put(Constants.JSON_CALL_USER, username);
-                    mPubNub.publish(userCall, jsonCall, new Callback() {
-                        @Override
-                        public void successCallback(String channel, Object message) { //TODO conectamos nosotros al otro
-                            Log.d("MA-dCall", "SUCCESS: " + message.toString());
-                            //Toast.makeText(getBaseContext(), "me han contestado", Toast.LENGTH_LONG).show();
-                            /*Intent intent = new Intent(Profile.this, Recursos.class);
-                            intent.putExtra("user_name", username);
-                            intent.putExtra("call_user", connectTo);
-                            startActivity(intent);*/
-
-                            connectPeer(connectTo, true);
-                        }
-                    });
-                } catch (JSONException e) {
-                    e.printStackTrace();
-                }
+                publish(connectTo, "VAR");
             }
         });
 
@@ -116,6 +98,29 @@ DatabaseHelper mDatabaseHelper;
         initPubNub();
     }
 
+    private void publish(final String connectTo, final String connectionType){
+        String userCall = connectTo + Constants.STDBY_SUFFIX;
+        JSONObject jsonCall = new JSONObject();
+        try {
+            jsonCall.put(Constants.JSON_CALL_USER, username);
+            mPubNub.publish(userCall, jsonCall, new Callback() {
+                @Override
+                public void successCallback(String channel, Object message) { //conectamos nosotros al otro
+                    Log.d("MA-dCall", "SUCCESS: " + message.toString());
+                    connectPeer(connectTo, true); //conectamos con el peer
+
+                    if(connectionType.equals("VAR")){ //buscamos que tipo de mensaje debemos enviar
+                        VAR(connectTo);
+                    }else if(connectionType.equals("FR")){
+                        FR(connectTo);
+                    }
+                }
+            });
+        } catch (JSONException e) {
+            e.printStackTrace();
+        }
+    }
+
     public void initPubNub(){
         String stdbyChannel = this.username + Constants.STDBY_SUFFIX;
         this.mPubNub = new Pubnub(Constants.PUB_KEY, Constants.SUB_KEY);
@@ -127,18 +132,10 @@ DatabaseHelper mDatabaseHelper;
                     Log.v("MA-success", "MESSAGE: " + message.toString());
                     if (!(message instanceof JSONObject)) return; // Ignore if not JSONObject
                     JSONObject jsonMsg = (JSONObject) message;
-                    try { //TODO conectar con el peer que envió el SDP
+                    try {
                         if (!jsonMsg.has(Constants.JSON_CALL_USER)) return;
-                        String user = jsonMsg.getString(Constants.JSON_CALL_USER);
-                        // Consider Accept/Reject call here
-                        //intent.putExtra(Constants.JSON_CALL_USER, user);
-                        /*Intent intent = new Intent(Profile.this, Recursos.class);
-                        intent.putExtra("user_name", username);
-                        intent.putExtra("call_user", user); //TODO podriamos pasar una variable que indique que pasa lo que necesite y vuelve a la actividad
-                        startActivity(intent);*/
                         connectPeer("", false);
-
-                    } catch (JSONException e) {
+                    } catch (Exception e) {
                         e.printStackTrace();
                     }
                 }
@@ -172,9 +169,13 @@ DatabaseHelper mDatabaseHelper;
                 bf.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {
-                        addData(name.getText().toString()); //TODO metodo para comprobar si existe el usuario
-                        populateListView();
+                        /*addData(name.getText().toString()); //TODO metodo para comprobar si existe el usuario en la lista de amigos
+                        populateListView();*/
+                        String fr = name.getText().toString();
                         mdialog.dismiss();
+                        publish(fr, "FR");
+                        Toast.makeText(getApplicationContext(), "Friend request sent", Toast.LENGTH_SHORT).show();
+                        //TODO enviar peticion al otro usuario
                     }
                 });
 
@@ -186,7 +187,7 @@ DatabaseHelper mDatabaseHelper;
         }
     }
 
-    public void addData(String newEntry){
+    public void addData(String newEntry){ //llamar cuando aceptemos la peticion de amistad y cuando nos la acepten
         boolean insertData = mDatabaseHelper.addData(newEntry);
 
         if(insertData){
@@ -226,25 +227,85 @@ DatabaseHelper mDatabaseHelper;
 
         if(call){
             this.pnRTCClient.connect(connectTo);
-
-           try{
-               Thread.sleep(2000);
-           } catch(Exception e){
-               e.printStackTrace();
-           }
-            JSONObject msg = new JSONObject();
-            try{
-                msg.put("name", "Josue Pradas");
-                msg.put("msg", "HOLA MUNDO");
-
-                this.pnRTCClient.transmit(connectTo, msg);
-            }catch(JSONException e){
-                e.printStackTrace();
-            }
-
-            //this.pnRTCClient.closeConnection(connectTo);
-
         }
+    }
+
+    private void FR(String sendTo){ //Friend Request
+        try{
+            JSONObject msg = new JSONObject();
+            msg.put("type", "FR");
+            msg.put("sendTo", this.username);
+
+            this.pnRTCClient.transmit(sendTo, msg);
+        }catch(Exception e){
+            e.printStackTrace();
+        }
+    }
+
+    private void handleFR(JSONObject jsonMsg){
+        try{
+            String userFR = jsonMsg.getString("sendTo");
+            mdialog = new Dialog(Profile.this);
+            mdialog.setContentView(R.layout.dialog_acceptfriend);
+            mdialog.show();
+            TextView f_name = (TextView) mdialog.findViewById(R.id.accept_friend_tv);
+            f_name.setText("Do you want to accept " + userFR + " as a friend?");
+
+            //TODO manejar los botones y sus eventos
+
+        }catch(Exception e){
+            e.printStackTrace();
+        }
+    }
+
+    private void VAR(String sendTo){ //envia peticion para ver archivos
+       try{
+           JSONObject msg = new JSONObject();
+           msg.put("type", "VAR"); //tipo de mensaje
+           msg.put("sendTo", this.username); //usuario para devolver mensaje con datos
+
+           this.pnRTCClient.transmit(sendTo, msg);
+       }catch(Exception e){
+           e.printStackTrace();
+       }
+    }
+
+    private void handleVAL(JSONObject jsonMsg){
+        try{
+            ArrayList<String> al = new ArrayList();
+
+            String item1 = jsonMsg.getString("item1");
+            al.add(item1);
+            String item2 = jsonMsg.getString("item2");
+            al.add(item2);
+            String item3 = jsonMsg.getString("item3");
+            al.add(item3);
+
+            Intent intent = new Intent(Profile.this, Recursos.class);
+            intent.putExtra("lista", al);
+            startActivity(intent); //para volver a esta activity, llamar finish() desde la otra.
+
+        }catch(Exception e){
+            e.printStackTrace();
+        }
+    }
+
+    private void VAL(JSONObject jsonMsg){
+       try{
+           BufferedReader fin = new BufferedReader(new InputStreamReader(openFileInput("shared_stuff.txt")));
+           int size = Integer.parseInt(fin.readLine());
+           String item = "item";
+           JSONObject msg = new JSONObject();
+           msg.put("type", "VAL");
+
+           for(int i=0; i < size; i++){
+               msg.put(item + (i+1), fin.readLine());
+           }
+
+           this.pnRTCClient.transmit(jsonMsg.getString("sendTo"), msg);
+       }catch(Exception e){
+           e.printStackTrace();
+       }
     }
 
     private class myRTCListener extends PnRTCListener{
@@ -265,17 +326,27 @@ DatabaseHelper mDatabaseHelper;
         @Override
         public void onMessage(PnPeer peer, Object message) {
             if (!(message instanceof JSONObject)) return; //Ignore if not JSONObject
-            JSONObject jsonMsg = (JSONObject) message;
+            final JSONObject jsonMsg = (JSONObject) message;
             try {
-                final String user = jsonMsg.getString("name");
-                final String text = jsonMsg.getString("msg");
+               final String type = jsonMsg.getString("type"); //TODO el manejo de los mensajes estaría bien hacerlos fuera de perfil, ya que no es su objetivo principal
+               if(type.equals("VAR")){
+                   VAL(jsonMsg);
+               }else if(type.equals("VAL")){ //se debe manejar en la hebra principal ya que inicia una nueva actividad
+                   Profile.this.runOnUiThread(new Runnable() {
+                       @Override
+                       public void run() {
+                           handleVAL(jsonMsg);
+                       }
+                   });
+               }else if(type.equals("FR")){
+                   Profile.this.runOnUiThread(new Runnable() {
+                       @Override
+                       public void run() {
+                           handleFR(jsonMsg);
+                       }
+                   });
+               }
 
-                Profile.this.runOnUiThread(new Runnable() {
-                    @Override
-                    public void run() {
-                        Toast.makeText(Profile.this,user + " dice " + text,Toast.LENGTH_SHORT).show();
-                    }
-                });
             } catch (JSONException e){
                 e.printStackTrace();
             }

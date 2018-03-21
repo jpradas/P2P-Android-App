@@ -4,13 +4,15 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    tools:context="com.example.samue.login.Recursos">
+    tools:context="com.example.samue.login.Recursos"
+    android:background="@drawable/background">
 
-    <TextView
-        android:id="@+id/textView"
-        android:layout_width="wrap_content"
+    <ListView
+        android:id="@+id/shared"
+        android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:text="HOLA"
-        tools:layout_editor_absoluteX="163dp"
-        tools:layout_editor_absoluteY="250dp" />
+        android:layout_marginTop="55dp">
+
+    </ListView>
+
 </android.support.constraint.ConstraintLayout>
