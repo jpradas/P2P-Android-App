@@ -110,7 +110,7 @@ public class Signup extends AppCompatActivity {
             fout.write('\n');
             fout.close();
 
-            fout = new OutputStreamWriter(openFileOutput("shared_stuff.txt", Context.MODE_PRIVATE)); //TODO esto habra que quitarlo cuando se haga el explorador de archivos
+           /* fout = new OutputStreamWriter(openFileOutput("shared_stuff.txt", Context.MODE_PRIVATE)); //TODO esto habra que quitarlo cuando se haga el explorador de archivos
             fout.write("3"); //size
             fout.write('\n');
             fout.write("item1");
@@ -119,7 +119,7 @@ public class Signup extends AppCompatActivity {
             fout.write('\n');
             fout.write("foto.jpg");
             fout.write('\n');
-            fout.close();
+            fout.close();*/
 
         }catch(Exception e){
             valid = false;
@@ -159,6 +159,7 @@ public class Signup extends AppCompatActivity {
           user.setError("User already exists");
         }else{
             new File("/data/data/com.example.samue.login/files/shared_stuff.txt");
+            new File("/data/data/com.example.samue.login/files/archives_path.txt");
         }
 
         return valid;

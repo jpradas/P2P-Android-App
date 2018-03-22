@@ -168,14 +168,16 @@ DatabaseHelper mDatabaseHelper;
 
                 bf.setOnClickListener(new View.OnClickListener() {
                     @Override
-                    public void onClick(View v) {
-                        /*addData(name.getText().toString()); //TODO metodo para comprobar si existe el usuario en la lista de amigos
-                        populateListView();*/
+                    public void onClick(View v) {//TODO metodo para comprobar si existe el usuario en la lista de amigos
                         String fr = name.getText().toString();
-                        mdialog.dismiss();
-                        publish(fr, "FR");
-                        Toast.makeText(getApplicationContext(), "Friend request sent", Toast.LENGTH_SHORT).show();
-                        //TODO enviar peticion al otro usuario
+                        if(!listContains(fr)) {
+                            mdialog.dismiss();
+                            publish(fr, "FR");
+                            Toast.makeText(getApplicationContext(), "Friend request sent", Toast.LENGTH_SHORT).show();
+                        }else{
+                            //mdialog.dismiss();
+                            Toast.makeText(getApplicationContext(), "you're already friend of " + fr, Toast.LENGTH_SHORT).show();
+                        }
                     }
                 });
 
@@ -187,13 +189,21 @@ DatabaseHelper mDatabaseHelper;
         }
     }
 
+    private boolean listContains(String nombre){
+        boolean contains = false;
+        for(Friends f : al_friends){
+            if(f.getNombre().equals(nombre)){
+                contains = true;
+            }
+        }
+        return contains;
+    }
+
     public void addData(String newEntry){ //llamar cuando aceptemos la peticion de amistad y cuando nos la acepten
         boolean insertData = mDatabaseHelper.addData(newEntry);
 
         if(insertData){
-            Toast.makeText(this, "Friend successfully added", Toast.LENGTH_SHORT).show();
-        }else{
-            Toast.makeText(this, "Something went wrong", Toast.LENGTH_SHORT).show();
+            populateListView();
         }
     }
 
@@ -244,15 +254,60 @@ DatabaseHelper mDatabaseHelper;
 
     private void handleFR(JSONObject jsonMsg){
         try{
-            String userFR = jsonMsg.getString("sendTo");
+            final String userFR = jsonMsg.getString("sendTo");
             mdialog = new Dialog(Profile.this);
             mdialog.setContentView(R.layout.dialog_acceptfriend);
             mdialog.show();
             TextView f_name = (TextView) mdialog.findViewById(R.id.accept_friend_tv);
             f_name.setText("Do you want to accept " + userFR + " as a friend?");
 
-            //TODO manejar los botones y sus eventos
+            Button yes = (Button) mdialog.findViewById(R.id.accept_friend_yes);
+            Button no = (Button) mdialog.findViewById(R.id.accept_friend_no);
 
+            no.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    mdialog.dismiss();
+                }
+            });
+
+            yes.setOnClickListener(new View.OnClickListener() {
+                @Override
+                public void onClick(View v) {
+                    Profile.this.runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            addData(userFR);
+                        }
+                    });
+                    FA(userFR);
+                    mdialog.dismiss();
+                }
+            });
+
+        }catch(Exception e){
+            e.printStackTrace();
+        }
+    }
+
+    private void FA(String sendTo){
+        try{
+            JSONObject msg = new JSONObject();
+            msg.put("type", "FA");
+            msg.put("addme", this.username);
+
+            this.pnRTCClient.transmit(sendTo, msg);
+        }catch(Exception e){
+            e.printStackTrace();
+        }
+    }
+
+    private void handleFA(JSONObject jsonMsg){
+        try{
+            String addme = jsonMsg.getString("addme");
+            addData(addme);
+
+            //this.pnRTCClient.closeConnection(addme);
         }catch(Exception e){
             e.printStackTrace();
         }
@@ -343,6 +398,13 @@ DatabaseHelper mDatabaseHelper;
                        @Override
                        public void run() {
                            handleFR(jsonMsg);
+                       }
+                   });
+               }else if(type.equals("FA")){
+                   Profile.this.runOnUiThread(new Runnable() {
+                       @Override
+                       public void run() {
+                           handleFA(jsonMsg);
                        }
                    });
                }

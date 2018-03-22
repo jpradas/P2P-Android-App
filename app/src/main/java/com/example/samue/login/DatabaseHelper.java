@@ -17,6 +17,7 @@ public class DatabaseHelper extends SQLiteOpenHelper{
 
     public DatabaseHelper(Context context){
         super(context, DB_NAME, null, 1);
+        //context.deleteDatabase(DB_NAME); //para borrar la base de datos si hace falta
     }
     @Override
     public void onCreate(SQLiteDatabase db) {
