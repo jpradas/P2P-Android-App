@@ -8,69 +8,32 @@
     android:orientation="vertical"
     android:background="@drawable/background">
 
-    <LinearLayout
-        android:id="@+id/l1"
-        android:layout_width="match_parent"
-        android:layout_height="351dp"
-        android:orientation="vertical">
 
-        <ImageView
-            android:layout_width="150dp"
-            android:layout_height="150dp"
-            android:background="@drawable/logo"
-            android:layout_gravity="center"
-            android:layout_marginTop="30dp"/>
 
-        <EditText
-            android:id="@+id/user"
-            android:layout_width="200dp"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:layout_marginTop="20dp"
-            android:hint="Username"
-            android:textColorHint="@color/lightOrange"
-            android:textColor="@color/lightOrange"/>
+    <ImageView
+        android:layout_width="150dp"
+        android:layout_height="150dp"
+        android:background="@drawable/logo"
+        android:layout_gravity="center"
+        android:layout_marginTop="30dp"/>
 
-        <EditText
-            android:id="@+id/pass"
-            android:layout_width="200dp"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:layout_marginTop="20dp"
-            android:hint="Password"
-            android:textColorHint="@color/lightOrange"
-            android:textColor="@color/lightOrange"
-            android:ems="10"
-            android:inputType="textNoSuggestions|textPassword" />
-
-        <TextView
-            android:id="@+id/signup"
-            android:layout_width="175dp"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:textColor="@color/lightOrangeDark"
-            android:layout_marginTop="15dp"
-            android:text="No account yet? Create one"/>
-
-    </LinearLayout>
-
-    <LinearLayout
-        android:id="@+id/l2"
+    <TextView
+        android:id="@+id/signup"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:orientation="vertical"
-        android:background="@drawable/cohete">
+        android:layout_gravity="center"
+        android:layout_marginTop="30dp"
+        android:text="P2P Sharing"
+        android:textColor="@color/lightOrangeDark"
+        android:textSize="50dp" />
 
-        <Button
-            android:id="@+id/loginbutton"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:textColor="@color/black"
-            android:text="LOGIN"
-            android:layout_marginTop="20dp"
-            android:background="@drawable/buttonstyle" />
+    <TextView
+        android:layout_width="276dp"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:layout_marginTop="180dp"
+        android:text="Your new way of sharing files with your friends"
+        android:textSize="25dp" />
 
-    </LinearLayout>
 
 </LinearLayout>
