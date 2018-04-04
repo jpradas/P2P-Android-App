@@ -2,8 +2,9 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
+      <module fileurl="file://$PROJECT_DIR$/Login.iml" filepath="$PROJECT_DIR$/Login.iml" />
       <module fileurl="file://F:\AndroidStudioProyects\P2P-Android-App\Login.iml" filepath="F:\AndroidStudioProyects\P2P-Android-App\Login.iml" />
-      <module fileurl="file://$PROJECT_DIR$/.idea/P2P-Android-App.iml" filepath="$PROJECT_DIR$/.idea/P2P-Android-App.iml" />
+      <module fileurl="file://C:\Users\samue\AndroidStudioProjects\Login\.idea\P2P-Android-App.iml" filepath="C:\Users\samue\AndroidStudioProjects\Login\.idea\P2P-Android-App.iml" />
       <module fileurl="file://$PROJECT_DIR$/app/app.iml" filepath="$PROJECT_DIR$/app/app.iml" />
     </modules>
   </component>

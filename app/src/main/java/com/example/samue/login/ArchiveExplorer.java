@@ -3,7 +3,12 @@ package com.example.samue.login;
 import android.*;
 import android.Manifest;
 import android.app.Activity;
+import android.app.Dialog;
+import android.app.ProgressDialog;
+import android.content.Context;
+import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.net.Uri;
 import android.os.Environment;
 import android.support.annotation.NonNull;
 import android.support.v4.app.ActivityCompat;
@@ -13,6 +18,7 @@ import android.os.Bundle;
 import android.view.View;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
+import android.widget.Button;
 import android.widget.ListView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -23,7 +29,7 @@ import java.util.Collections;
 import java.util.List;
 
 public class ArchiveExplorer extends AppCompatActivity {
-
+    private Dialog mdialog;
     private List listaNombresArchivos;
     private List listaRutasArchivos;
     private ArrayAdapter adaptador;
@@ -40,7 +46,6 @@ public class ArchiveExplorer extends AppCompatActivity {
         listaItems = (ListView) findViewById(R.id.lista_items);
 
         directorioRaiz = Environment.getExternalStorageDirectory().getPath();
-        //directorioRaiz = "/mnt/user";
 
         verArchivosDirectorio(directorioRaiz);
 
@@ -52,7 +57,53 @@ public class ArchiveExplorer extends AppCompatActivity {
                 // Si es un archivo se muestra un Toast con su nombre y si es un directorio
                 // se cargan los archivos que contiene en el listView
                 if (archivo.isFile()) {
-                    Toast.makeText(ArchiveExplorer.this, "Has seleccionado el archivo: " + archivo.getName(),Toast.LENGTH_LONG).show();
+                    //Toast.makeText(ArchiveExplorer.this, "Has seleccionado el archivo: " + archivo.getName(),Toast.LENGTH_LONG).show();
+                    final String name = archivo.getName();
+                    final String path = archivo.getPath();
+
+                    mdialog = new Dialog(ArchiveExplorer.this);
+                    mdialog.setContentView(R.layout.dialog_confirmsharedarchive);
+                    mdialog.show();
+
+                    TextView tv = (TextView) mdialog.findViewById(R.id.confirm_archive_tv);
+                    tv.setText("Do you want to share " + archivo.getName() + " with your friends?");
+
+                    Button yes = (Button) mdialog.findViewById(R.id.confirm_archive_yes);
+                    Button no = (Button) mdialog.findViewById(R.id.confirm_archive_no);
+
+                    no.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            mdialog.dismiss();
+                        }
+                    });
+
+                    yes.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            mdialog.dismiss();
+                            final ProgressDialog progressDialog = new ProgressDialog(ArchiveExplorer.this);
+                            progressDialog.setIndeterminate(true);
+                            progressDialog.setMessage("uploading " + name + "...");
+                            progressDialog.show();
+
+                            new android.os.Handler().postDelayed(
+                                    new Runnable() {
+                                        public void run() {
+                                            // On complete call either onLoginSuccess or onLoginFailed
+                                            Uri dato = Uri.parse("content://name/" + name);
+
+                                            Intent resultado = new Intent(null, dato);
+                                            resultado.putExtra("name", name);
+                                            resultado.putExtra("path", path);
+                                            setResult(RESULT_OK, resultado);
+                                            finish();
+                                            progressDialog.dismiss();
+                                        }
+                                    }, 2000);
+                        }
+                    });
+
                 } else {
                     // Si no es un directorio mostramos todos los archivos que contiene
                     verArchivosDirectorio((String)listaRutasArchivos.get(position));

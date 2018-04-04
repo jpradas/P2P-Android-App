@@ -1,6 +1,7 @@
 package com.example.samue.login;
 
 import android.*;
+import android.app.Activity;
 import android.app.Dialog;
 import android.app.SearchManager;
 import android.content.Context;
@@ -64,6 +65,7 @@ ListView friends_list;
 FriendsAdapter adapter;
 ArrayList<Friends> al_friends;
 DatabaseHelper mDatabaseHelper;
+ArchivesDatabase mArchivesDatabase;
 
     public static final String LOCAL_MEDIA_STREAM_ID = "localStreamPN";
     private PnRTCClient pnRTCClient;
@@ -75,6 +77,7 @@ DatabaseHelper mDatabaseHelper;
         setContentView(R.layout.activity_profile);
         this.username = getIntent().getExtras().getString("user");
         mDatabaseHelper = new DatabaseHelper(this);
+        mArchivesDatabase = new ArchivesDatabase(this);
         friends_list = (ListView) findViewById(R.id.friends_list);
 
         populateListView();
@@ -131,7 +134,8 @@ DatabaseHelper mDatabaseHelper;
             ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
         }else{
             Intent intent = new Intent(Profile.this, ArchiveExplorer.class);
-            startActivity(intent);
+            //intent.putExtra("archivesDatabase", mArchivesDatabase);
+            startActivityForResult(intent, 1);
         }
     }
 
@@ -160,6 +164,27 @@ DatabaseHelper mDatabaseHelper;
     }
 
     @Override
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) { //actividad que inserta en bbdd un archivo nuevo que queramos subir
+        super.onActivityResult(requestCode, resultCode, data);
+
+        switch(requestCode){
+            case 1:
+                if(resultCode == Activity.RESULT_OK){
+                    String name = data.getStringExtra("name");
+                    String path = data.getStringExtra("path");
+
+                    if(!this.mArchivesDatabase.exists(name)){
+                        this.mArchivesDatabase.addData(name, path);
+                        notificate("Archive is now shared");
+                    }else{
+                        notificate("Archive is already shared");
+                    }
+                }
+                break;
+        }
+    }
+
+    @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         switch(requestCode){
             case 1: {
@@ -168,7 +193,8 @@ DatabaseHelper mDatabaseHelper;
                         @Override
                         public void run() {
                             Intent intent = new Intent(Profile.this, ArchiveExplorer.class);
-                            startActivity(intent);
+                            //intent.putExtra("profileContext", this);
+                            startActivityForResult(intent, 1);
                         }
                     });
                 }else{
@@ -193,9 +219,13 @@ DatabaseHelper mDatabaseHelper;
 
     public boolean onOptionsItemSelected(MenuItem item) {
         switch (item.getItemId()) {
-            case R.id.action_settings:
+            case R.id.see_shared_archives:
                 // User chose the "Settings" item, show the app settings UI...
-                Toast.makeText(getBaseContext(), "Settings clicked", Toast.LENGTH_LONG).show();
+                //Toast.makeText(getBaseContext(), "Settings clicked", Toast.LENGTH_LONG).show();
+                ArrayList<String> al = getArchivesList();
+                Intent intent = new Intent(Profile.this, Recursos.class);
+                intent.putExtra("lista", al);
+                startActivity(intent);
                 return true;
 
             case R.id.action_add_friend:
@@ -256,6 +286,16 @@ DatabaseHelper mDatabaseHelper;
         friends_list.setAdapter(adapter);
     }
 
+    private ArrayList<String> getArchivesList(){
+        ArrayList<String> al = new ArrayList<String>();
+        Cursor data = mArchivesDatabase.getData();
+
+        while(data.moveToNext()){
+            al.add(data.getString(1));
+        }
+        return al;
+    }
+
     private void connectPeer(String connectTo, boolean call){
         PeerConnectionFactory.initializeAndroidGlobals(
                 getApplicationContext(),  // Context
@@ -277,6 +317,16 @@ DatabaseHelper mDatabaseHelper;
         if(call){
             this.pnRTCClient.connect(connectTo);
         }
+    }
+
+    private void notificate(String notification){
+        final String notice = notification;
+        Profile.this.runOnUiThread(new Runnable() {
+            @Override
+            public void run() {
+                Toast.makeText(getApplicationContext(), notice, Toast.LENGTH_SHORT).show();
+            }
+        });
     }
 
     private void FR(String sendTo){ //Friend Request
@@ -424,7 +474,7 @@ DatabaseHelper mDatabaseHelper;
             try {
                final String type = jsonMsg.getString("type"); //TODO el manejo de los mensajes estaría bien hacerlos fuera de perfil, ya que no es su objetivo principal
                if(type.equals("VAR")){
-                   VAL(jsonMsg);
+                   //VAL(jsonMsg);
                }else if(type.equals("VAL")){ //se debe manejar en la hebra principal ya que inicia una nueva actividad
                    Profile.this.runOnUiThread(new Runnable() {
                        @Override

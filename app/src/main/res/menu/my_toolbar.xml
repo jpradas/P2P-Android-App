@@ -2,8 +2,8 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto">
 
-    <item android:id="@+id/action_settings"
-        android:title="action_settings"
+    <item android:id="@+id/see_shared_archives"
+        android:title="see shared files"
         app:showAsAction="never"/>
 
     <item android:id="@+id/action_search"
