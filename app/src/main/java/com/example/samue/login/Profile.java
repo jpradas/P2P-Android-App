@@ -1,12 +1,17 @@
 package com.example.samue.login;
 
+import android.*;
 import android.app.Dialog;
 import android.app.SearchManager;
 import android.content.Context;
 import android.content.Intent;
+import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
+import android.support.v4.app.ActivityCompat;
+import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
@@ -89,12 +94,12 @@ DatabaseHelper mDatabaseHelper;
 
         fab = (FloatingActionButton) findViewById(R.id.fab);
 
-        /*fab.setOnClickListener(new View.OnClickListener() { //TODO debe subir al fichero interno el path del archivo que elije
+        fab.setOnClickListener(new View.OnClickListener() { //TODO debe subir al fichero interno el path del archivo que elije
             @Override
             public void onClick(View v) {
-
+                comprobarPermisos();
             }
-        });*/
+        });
         initPubNub();
     }
 
@@ -121,6 +126,15 @@ DatabaseHelper mDatabaseHelper;
         }
     }
 
+    private void comprobarPermisos(){
+        if(ContextCompat.checkSelfPermission(this, android.Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED){
+            ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
+        }else{
+            Intent intent = new Intent(Profile.this, ArchiveExplorer.class);
+            startActivity(intent);
+        }
+    }
+
     public void initPubNub(){
         String stdbyChannel = this.username + Constants.STDBY_SUFFIX;
         this.mPubNub = new Pubnub(Constants.PUB_KEY, Constants.SUB_KEY);
@@ -142,6 +156,31 @@ DatabaseHelper mDatabaseHelper;
             });
         } catch (PubnubException e) {
             e.printStackTrace();
+        }
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
+        switch(requestCode){
+            case 1: {
+                if(grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED){
+                    Profile.this.runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            Intent intent = new Intent(Profile.this, ArchiveExplorer.class);
+                            startActivity(intent);
+                        }
+                    });
+                }else{
+                    Profile.this.runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            Toast.makeText(Profile.this, "no se puede acceder a los archivos", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                }
+                return;
+            }
         }
     }
 
