@@ -35,6 +35,8 @@ import android.widget.SearchView;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.google.android.gms.iid.InstanceID;
+
 import com.pubnub.api.Callback;
 import com.pubnub.api.Pubnub;
 import com.pubnub.api.PubnubException;
@@ -59,8 +61,9 @@ import util.Constants;
 public class Profile extends AppCompatActivity {
 Dialog mdialog;
 FloatingActionButton fab;
-EditText name;
+EditText friendId;
 Button bf;
+TextView idInstancia;
 ListView friends_list;
 FriendsAdapter adapter;
 ArrayList<Friends> al_friends;
@@ -143,6 +146,7 @@ ArchivesDatabase mArchivesDatabase;
         String stdbyChannel = this.username + Constants.STDBY_SUFFIX;
         this.mPubNub = new Pubnub(Constants.PUB_KEY, Constants.SUB_KEY);
         this.mPubNub.setUUID(this.username);
+
         try {
             this.mPubNub.subscribe(stdbyChannel, new Callback(){ //creamos nuestro canal y nos quedamos en stand-by esperando alguna conexión
                 @Override
@@ -232,13 +236,16 @@ ArchivesDatabase mArchivesDatabase;
                 mdialog = new Dialog(Profile.this);
                 mdialog.setContentView(R.layout.dialog_newfriend);
                 mdialog.show();
-                name = (EditText) mdialog.findViewById(R.id.name);
+                friendId = (EditText) mdialog.findViewById(R.id.friend_id);
                 bf = (Button) mdialog.findViewById(R.id.button_friend);
+                idInstancia = (TextView) mdialog.findViewById(R.id.id_instancia);
+                String iid = InstanceID.getInstance(this).getId();
+                idInstancia.setText(iid);
 
                 bf.setOnClickListener(new View.OnClickListener() {
                     @Override
                     public void onClick(View v) {//TODO metodo para comprobar si existe el usuario en la lista de amigos
-                        String fr = name.getText().toString();
+                        String fr = friendId.getText().toString();
                         if(!listContains(fr)) {
                             mdialog.dismiss();
                             publish(fr, "FR");
