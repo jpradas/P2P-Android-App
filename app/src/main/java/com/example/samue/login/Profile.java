@@ -2,13 +2,18 @@ package com.example.samue.login;
 
 import android.*;
 import android.app.Activity;
+import android.app.ActivityManager;
 import android.app.Dialog;
+import android.app.ProgressDialog;
 import android.app.SearchManager;
+import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
+import android.net.Uri;
+import android.os.Environment;
 import android.support.annotation.NonNull;
 import android.support.design.widget.FloatingActionButton;
 import android.support.v4.app.ActivityCompat;
@@ -17,6 +22,7 @@ import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.support.v7.widget.Toolbar;
+import android.util.Base64;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -46,7 +52,12 @@ import org.webrtc.PeerConnection;
 import org.webrtc.PeerConnectionFactory;
 import org.webrtc.VideoRendererGui;
 
+import java.io.BufferedInputStream;
+import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.List;
@@ -66,16 +77,19 @@ FriendsAdapter adapter;
 ArrayList<Friends> al_friends;
 DatabaseHelper mDatabaseHelper;
 ArchivesDatabase mArchivesDatabase;
+private String userRecursos;
 
     public static final String LOCAL_MEDIA_STREAM_ID = "localStreamPN";
     private PnRTCClient pnRTCClient;
     private Pubnub mPubNub;
     public String username;
+    private String archivoCompartido;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_profile);
         this.username = getIntent().getExtras().getString("user");
+        this.archivoCompartido = "";
         mDatabaseHelper = new DatabaseHelper(this);
         mArchivesDatabase = new ArchivesDatabase(this);
         friends_list = (ListView) findViewById(R.id.friends_list);
@@ -86,6 +100,7 @@ ArchivesDatabase mArchivesDatabase;
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                 final String connectTo = al_friends.get(position).getNombre();
+                userRecursos = connectTo;
                 publish(connectTo, "VAR");
             }
         });
@@ -164,7 +179,7 @@ ArchivesDatabase mArchivesDatabase;
     }
 
     @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) { //actividad que inserta en bbdd un archivo nuevo que queramos subir
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
 
         switch(requestCode){
@@ -181,6 +196,31 @@ ArchivesDatabase mArchivesDatabase;
                     }
                 }
                 break;
+            case 2:
+                if(resultCode == Activity.RESULT_OK){
+                    final String name = data.getStringExtra("name");
+                    String sendTo = data.getStringExtra("sendTo");
+                    RA(name, sendTo);
+
+                    Profile.this.runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            final ProgressDialog progressDialog = new ProgressDialog(Profile.this);
+                            progressDialog.setIndeterminate(true);
+                            progressDialog.setMessage("downloading " + name + "... wait for the download");
+                            progressDialog.show();
+
+                            new android.os.Handler().postDelayed(
+                                    new Runnable() {
+                                        public void run() {
+                                            progressDialog.dismiss();
+                                        }
+                                    }, 5000);
+                        }
+                    });
+                }
+            default:
+                cerrarConexion(userRecursos);
         }
     }
 
@@ -225,6 +265,7 @@ ArchivesDatabase mArchivesDatabase;
                 ArrayList<String> al = getArchivesList();
                 Intent intent = new Intent(Profile.this, Recursos.class);
                 intent.putExtra("lista", al);
+                intent.putExtra("listener", false);
                 startActivity(intent);
                 return true;
 
@@ -297,22 +338,24 @@ ArchivesDatabase mArchivesDatabase;
     }
 
     private void connectPeer(String connectTo, boolean call){
-        PeerConnectionFactory.initializeAndroidGlobals(
-                getApplicationContext(),  // Context
-                true,  // Audio Enabled
-                true,  // Video Enabled
-                true,  // Hardware Acceleration Enabled
-                VideoRendererGui.getEGLContext()); // Render EGL Context
+        if(this.pnRTCClient == null) {
+            PeerConnectionFactory.initializeAndroidGlobals(
+                    getApplicationContext(),  // Context
+                    true,  // Audio Enabled
+                    true,  // Video Enabled
+                    true,  // Hardware Acceleration Enabled
+                    VideoRendererGui.getEGLContext()); // Render EGL Context
 
-        PeerConnectionFactory pcFactory = new PeerConnectionFactory();
-        this.pnRTCClient = new PnRTCClient(Constants.PUB_KEY, Constants.SUB_KEY, this.username);
+            PeerConnectionFactory pcFactory = new PeerConnectionFactory();
+            this.pnRTCClient = new PnRTCClient(Constants.PUB_KEY, Constants.SUB_KEY, this.username);
 
-        MediaStream mediaStream = pcFactory.createLocalMediaStream(LOCAL_MEDIA_STREAM_ID);
+            MediaStream mediaStream = pcFactory.createLocalMediaStream(LOCAL_MEDIA_STREAM_ID);
 
-        this.pnRTCClient.attachRTCListener(new myRTCListener());
-        this.pnRTCClient.attachLocalMediaStream(mediaStream);
+            this.pnRTCClient.attachRTCListener(new myRTCListener());
+            this.pnRTCClient.attachLocalMediaStream(mediaStream);
 
-        this.pnRTCClient.listenOn(this.username);
+            this.pnRTCClient.listenOn(this.username);
+        }
 
         if(call){
             this.pnRTCClient.connect(connectTo);
@@ -327,6 +370,154 @@ ArchivesDatabase mArchivesDatabase;
                 Toast.makeText(getApplicationContext(), notice, Toast.LENGTH_SHORT).show();
             }
         });
+    }
+
+    private void cerrarConexion(String userTo){
+        this.pnRTCClient.closeConnection(userTo);
+    }
+
+    private void RA(String name, String sendTo){ //Request Archive
+        try{
+            JSONObject msg = new JSONObject();
+            msg.put("type", "RA");
+            msg.put("sendTo", this.username);
+            msg.put("name", name);
+
+            this.pnRTCClient.transmit(sendTo, msg);
+        }catch(Exception e){
+            e.printStackTrace();
+        }
+    }
+
+    private void handleRA(JSONObject jsonMsg){
+        try{
+            String archive = jsonMsg.getString("name");
+            String sendTo = jsonMsg.getString("sendTo");
+            Cursor c  = this.mArchivesDatabase.getData(archive);
+
+            c.moveToNext();
+            String path = c.getString(1);
+
+            File file = new File(path);
+            FileInputStream fis = new FileInputStream(file);
+            BufferedInputStream bis = new BufferedInputStream(fis);
+
+            JSONObject msg = new JSONObject();
+            msg.put("type", "SA");
+            msg.put("name", archive);
+
+            int aLength = (int) file.length();
+            String s="";
+
+            byte[] bFile = new byte[aLength];
+            bis.read(bFile);
+            s = Base64.encodeToString(bFile, Base64.URL_SAFE);
+            aLength = s.length();
+
+            if(aLength > 5000){
+                int inicio = 0, fin = 5000;
+                msg.put("split", true);
+                msg.put("lastPiece", false);
+                msg.put("inicio", inicio);
+                String sub;
+                while(fin < aLength){
+                    sub = s.substring(inicio, fin);
+                    msg.remove("archive");
+                    msg.put("archive", sub);
+                    this.pnRTCClient.transmit(sendTo, msg);
+                    inicio += 5000;
+                    fin += 5000;
+                    msg.remove("inicio");
+                    msg.put("inicio", inicio);
+                }
+
+                if(inicio < aLength){
+                    sub = s.substring(inicio, aLength);
+                    msg.remove("archive");
+                    msg.put("archive", sub);
+                }
+                else{
+                    msg.remove("archive");
+                    msg.put("archive", "");
+                }
+                msg.remove("lastPiece");
+                msg.put("lastPiece", true);
+                this.pnRTCClient.transmit(sendTo, msg);
+
+            }else{
+                msg.put("split", false);
+                msg.put("lastPiece", true);
+                msg.put("archive", s);
+                this.pnRTCClient.transmit(sendTo, msg);
+            }
+
+            fis.close();
+            bis.close();
+
+            this.pnRTCClient.closeConnection(sendTo);
+
+        }catch(Exception e){
+            e.printStackTrace();
+        }
+    }
+
+    private void handleSA(JSONObject jsonMsg){
+        try{
+            String aux = "";
+            String name = jsonMsg.getString("name");
+            boolean split = jsonMsg.getBoolean("split");
+            boolean lastPiece = jsonMsg.getBoolean("lastPiece");
+            String archive = jsonMsg.getString("archive");
+
+            if(split){
+                if(!lastPiece){
+                    aux = this.archivoCompartido;
+                    this.archivoCompartido = aux + archive;
+                }else{
+                    if(!archive.equals("")){
+                        aux = this.archivoCompartido;
+                        this.archivoCompartido = aux + archive;
+                    }
+                    byte[] bFile = Base64.decode(this.archivoCompartido, Base64.URL_SAFE);
+                    guardarArchivo(bFile, name);
+                }
+            }else{
+                byte[] bFile = Base64.decode(archive, Base64.URL_SAFE);
+                guardarArchivo(bFile, name);
+            }
+
+
+        }catch(Exception e){
+            e.printStackTrace();
+        }
+    }
+
+    private void guardarArchivo(byte[] bFile, String name){
+        String path = Environment.getExternalStorageDirectory().getPath() + "/Download";
+        File file = new File(path, "P2PArchiveSharing");
+
+        if(!file.isDirectory()){
+            file.mkdirs();
+        }
+
+        path += "/P2PArchiveSharing/" + name;
+
+        try{
+            FileOutputStream fos = new FileOutputStream(path);
+            BufferedOutputStream bos = new BufferedOutputStream(fos);
+
+            bos.write(bFile);
+
+            bos.close();
+            fos.close();
+
+            this.archivoCompartido = "";
+            notificate("Archive " + name + " saved in Downloads");
+
+        }catch(Exception e){
+            e.printStackTrace();
+        }
+
     }
 
     private void FR(String sendTo){ //Friend Request
@@ -357,6 +548,7 @@ ArchivesDatabase mArchivesDatabase;
                 @Override
                 public void onClick(View v) {
                     mdialog.dismiss();
+                    cerrarConexion(userFR);
                 }
             });
 
@@ -396,7 +588,7 @@ ArchivesDatabase mArchivesDatabase;
             String addme = jsonMsg.getString("addme");
             addData(addme);
 
-            //this.pnRTCClient.closeConnection(addme);
+            cerrarConexion(addme);
         }catch(Exception e){
             e.printStackTrace();
         }
@@ -418,16 +610,17 @@ ArchivesDatabase mArchivesDatabase;
         try{
             ArrayList<String> al = new ArrayList();
 
-            String item1 = jsonMsg.getString("item1");
-            al.add(item1);
-            String item2 = jsonMsg.getString("item2");
-            al.add(item2);
-            String item3 = jsonMsg.getString("item3");
-            al.add(item3);
+            int size = jsonMsg.getInt("size");
+
+            for(int i = 0; i < size; i++){
+                al.add(jsonMsg.getString("item"+i));
+            }
 
             Intent intent = new Intent(Profile.this, Recursos.class);
             intent.putExtra("lista", al);
-            startActivity(intent); //para volver a esta activity, llamar finish() desde la otra.
+            intent.putExtra("listener", true);
+            intent.putExtra("sendTo", jsonMsg.getString("sendTo"));
+            startActivityForResult(intent, 2); //para volver a esta activity, llamar finish() desde la otra.
 
         }catch(Exception e){
             e.printStackTrace();
@@ -436,17 +629,20 @@ ArchivesDatabase mArchivesDatabase;
 
     private void VAL(JSONObject jsonMsg){
        try{
-           BufferedReader fin = new BufferedReader(new InputStreamReader(openFileInput("shared_stuff.txt")));
-           int size = Integer.parseInt(fin.readLine());
-           String item = "item";
            JSONObject msg = new JSONObject();
            msg.put("type", "VAL");
+           msg.put("sendTo", this.username);
+           ArrayList<String> al = getArchivesList();
+           msg.put("size", al.size());
+           int i = 0;
 
-           for(int i=0; i < size; i++){
-               msg.put(item + (i+1), fin.readLine());
+           for(String item : al){
+               msg.put("item"+i, item);
+               i++;
            }
 
            this.pnRTCClient.transmit(jsonMsg.getString("sendTo"), msg);
+           cerrarConexion(jsonMsg.getString("sendTo"));
        }catch(Exception e){
            e.printStackTrace();
        }
@@ -474,7 +670,7 @@ ArchivesDatabase mArchivesDatabase;
             try {
                final String type = jsonMsg.getString("type"); //TODO el manejo de los mensajes estaría bien hacerlos fuera de perfil, ya que no es su objetivo principal
                if(type.equals("VAR")){
-                   //VAL(jsonMsg);
+                   VAL(jsonMsg);
                }else if(type.equals("VAL")){ //se debe manejar en la hebra principal ya que inicia una nueva actividad
                    Profile.this.runOnUiThread(new Runnable() {
                        @Override
@@ -496,6 +692,10 @@ ArchivesDatabase mArchivesDatabase;
                            handleFA(jsonMsg);
                        }
                    });
+               }else if(type.equals("RA")){
+                   handleRA(jsonMsg);
+               }else if(type.equals("SA")){
+                   handleSA(jsonMsg);
                }
 
             } catch (JSONException e){

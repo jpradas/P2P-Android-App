@@ -48,7 +48,7 @@
         <activity android:name=".Signup" />
         <activity android:name=".Profile" />
         <activity android:name=".CreateName" />
-        <activity android:name=".Recursos" />
+        <activity android:name=".Recursos" android:noHistory="true"/>
         <activity android:name=".ArchiveExplorer"></activity>
 
     </application>
