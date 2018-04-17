@@ -37,6 +37,7 @@ import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.ListAdapter;
 import android.widget.ListView;
+import android.widget.ProgressBar;
 import android.widget.SearchView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -84,12 +85,15 @@ private String userRecursos;
     private Pubnub mPubNub;
     public String username;
     private String archivoCompartido;
+    private int step, total;
+    ProgressDialog pd;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_profile);
         this.username = getIntent().getExtras().getString("user");
         this.archivoCompartido = "";
+        this.step = 0; this.total = 0;
         mDatabaseHelper = new DatabaseHelper(this);
         mArchivesDatabase = new ArchivesDatabase(this);
         friends_list = (ListView) findViewById(R.id.friends_list);
@@ -205,17 +209,14 @@ private String userRecursos;
                     Profile.this.runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
-                            final ProgressDialog progressDialog = new ProgressDialog(Profile.this);
-                            progressDialog.setIndeterminate(true);
-                            progressDialog.setMessage("downloading " + name + "... wait for the download");
-                            progressDialog.show();
-
-                            new android.os.Handler().postDelayed(
-                                    new Runnable() {
-                                        public void run() {
-                                            progressDialog.dismiss();
-                                        }
-                                    }, 5000);
+                            pd = new ProgressDialog(Profile.this);
+                            pd.setMax(100);
+                            pd.setTitle("Downloading " + name + "...");
+                            pd.setMessage("wait for the download to complete");
+                            pd.setProgressStyle(ProgressDialog.STYLE_HORIZONTAL);
+                            pd.setCancelable(false);
+                            pd.setProgress(0);
+                            pd.show();
                         }
                     });
                 }
@@ -400,46 +401,45 @@ private String userRecursos;
 
             File file = new File(path);
             FileInputStream fis = new FileInputStream(file);
-            BufferedInputStream bis = new BufferedInputStream(fis);
+            //BufferedInputStream bis = new BufferedInputStream(fis);
 
             JSONObject msg = new JSONObject();
             msg.put("type", "SA");
             msg.put("name", archive);
 
-            int aLength = (int) file.length();
             String s="";
+            int aLength = (int) file.length();
 
             byte[] bFile = new byte[aLength];
-            bis.read(bFile);
+            fis.read(bFile);
             s = Base64.encodeToString(bFile, Base64.URL_SAFE);
+
             aLength = s.length();
 
             if(aLength > 5000){
                 int inicio = 0, fin = 5000;
                 msg.put("split", true);
                 msg.put("lastPiece", false);
+                msg.put("size", aLength);
                 msg.put("inicio", inicio);
                 String sub;
                 while(fin < aLength){
                     sub = s.substring(inicio, fin);
-                    msg.remove("archive");
                     msg.put("archive", sub);
                     this.pnRTCClient.transmit(sendTo, msg);
-                    inicio += 5000;
+                    msg.remove("archive");
                     fin += 5000;
+                    inicio += 5000;
                     msg.remove("inicio");
                     msg.put("inicio", inicio);
                 }
 
                 if(inicio < aLength){
-                    sub = s.substring(inicio, aLength);
+                    sub = s.substring(inicio);
                     msg.remove("archive");
                     msg.put("archive", sub);
                 }
-                else{
-                    msg.remove("archive");
-                    msg.put("archive", "");
-                }
+
                 msg.remove("lastPiece");
                 msg.put("lastPiece", true);
                 this.pnRTCClient.transmit(sendTo, msg);
@@ -452,7 +452,7 @@ private String userRecursos;
             }
 
             fis.close();
-            bis.close();
+            //bis.close();
 
             this.pnRTCClient.closeConnection(sendTo);
 
@@ -464,28 +464,52 @@ private String userRecursos;
     private void handleSA(JSONObject jsonMsg){
         try{
             String aux = "";
+            int size, inicio;
+            size = jsonMsg.getInt("size");
+            this.step = size / 100;
+            inicio = jsonMsg.getInt("inicio");
             String name = jsonMsg.getString("name");
             boolean split = jsonMsg.getBoolean("split");
             boolean lastPiece = jsonMsg.getBoolean("lastPiece");
             String archive = jsonMsg.getString("archive");
 
             if(split){
+                aux = this.archivoCompartido;
+                this.archivoCompartido = aux + archive;
                 if(!lastPiece){
-                    aux = this.archivoCompartido;
-                    this.archivoCompartido = aux + archive;
-                }else{
-                    if(!archive.equals("")){
-                        aux = this.archivoCompartido;
-                        this.archivoCompartido = aux + archive;
+                    if(inicio != 0){
+                        if(inicio > this.total){
+                            Profile.this.runOnUiThread(new Runnable() {
+                                @Override
+                                public void run() {
+                                    pd.incrementProgressBy(1);
+                                }
+                            });
+                            this.total += this.step;
+                        }
+                    }else{
+                        this.total = this.step;
                     }
+                }else{
                     byte[] bFile = Base64.decode(this.archivoCompartido, Base64.URL_SAFE);
+                    Profile.this.runOnUiThread(new Runnable() {
+                        @Override
+                        public void run() {
+                            pd.dismiss();
+                        }
+                    });
                     guardarArchivo(bFile, name);
                 }
             }else{
                 byte[] bFile = Base64.decode(archive, Base64.URL_SAFE);
+                Profile.this.runOnUiThread(new Runnable() {
+                    @Override
+                    public void run() {
+                        pd.dismiss();
+                    }
+                });
                 guardarArchivo(bFile, name);
             }
-
 
         }catch(Exception e){
             e.printStackTrace();
