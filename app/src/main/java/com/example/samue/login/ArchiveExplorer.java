@@ -61,6 +61,10 @@ public class ArchiveExplorer extends AppCompatActivity {
                     final String name = archivo.getName();
                     final String path = archivo.getPath();
 
+                    /*if(name.contains(".jpeg") || name.contains(".jpg") || name.contains(".png")){
+
+                    }*/
+
                     mdialog = new Dialog(ArchiveExplorer.this);
                     mdialog.setContentView(R.layout.dialog_confirmsharedarchive);
                     mdialog.show();

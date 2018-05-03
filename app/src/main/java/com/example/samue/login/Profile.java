@@ -113,13 +113,16 @@ private String userRecursos;
         setSupportActionBar(myToolbar);
         getSupportActionBar().setTitle(getIntent().getExtras().getString("user"));
 
+        comprobarPermisos();
 
         fab = (FloatingActionButton) findViewById(R.id.fab);
 
         fab.setOnClickListener(new View.OnClickListener() { //TODO debe subir al fichero interno el path del archivo que elije
             @Override
             public void onClick(View v) {
-                comprobarPermisos();
+                Intent intent = new Intent(Profile.this, ArchiveExplorer.class);
+                //intent.putExtra("archivesDatabase", mArchivesDatabase);
+                startActivityForResult(intent, 1);
             }
         });
         initPubNub();
@@ -151,10 +154,6 @@ private String userRecursos;
     private void comprobarPermisos(){
         if(ContextCompat.checkSelfPermission(this, android.Manifest.permission.WRITE_EXTERNAL_STORAGE) != PackageManager.PERMISSION_GRANTED){
             ActivityCompat.requestPermissions(this, new String[]{android.Manifest.permission.WRITE_EXTERNAL_STORAGE}, 1);
-        }else{
-            Intent intent = new Intent(Profile.this, ArchiveExplorer.class);
-            //intent.putExtra("archivesDatabase", mArchivesDatabase);
-            startActivityForResult(intent, 1);
         }
     }
 
@@ -233,16 +232,14 @@ private String userRecursos;
                     Profile.this.runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
-                            Intent intent = new Intent(Profile.this, ArchiveExplorer.class);
-                            //intent.putExtra("profileContext", this);
-                            startActivityForResult(intent, 1);
+                            Toast.makeText(Profile.this, "now you can share archives :)", Toast.LENGTH_SHORT).show();
                         }
                     });
                 }else{
                     Profile.this.runOnUiThread(new Runnable() {
                         @Override
                         public void run() {
-                            Toast.makeText(Profile.this, "no se puede acceder a los archivos", Toast.LENGTH_SHORT).show();
+                            Toast.makeText(Profile.this, "cannot access to archives", Toast.LENGTH_SHORT).show();
                         }
                     });
                 }
