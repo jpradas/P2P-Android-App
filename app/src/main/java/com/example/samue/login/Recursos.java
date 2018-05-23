@@ -66,6 +66,42 @@ public class Recursos extends AppCompatActivity {
                             Uri dato = Uri.parse("content://name/" + name);
                             Intent resultado = new Intent(null, dato);
                             resultado.putExtra("name", name);
+                            setResult(RESULT_OK, resultado);
+                            finish();
+                        }
+                    });
+                }
+            });
+        }else{
+            shared.setOnItemClickListener(new AdapterView.OnItemClickListener() {
+                @Override
+                public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
+                    final String name = listaNombresArchivos.get(position).toString();
+
+                    mdialog = new Dialog(Recursos.this);
+                    mdialog.setContentView(R.layout.dialog_confirmsharedarchive);
+                    mdialog.show();
+
+                    TextView tv = (TextView) mdialog.findViewById(R.id.confirm_archive_tv);
+                    tv.setText("Do you want to erase " + name + "?");
+
+                    Button yes = (Button) mdialog.findViewById(R.id.confirm_archive_yes);
+                    Button no = (Button) mdialog.findViewById(R.id.confirm_archive_no);
+
+                    no.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            mdialog.dismiss();
+                        }
+                    });
+
+                    yes.setOnClickListener(new View.OnClickListener() {
+                        @Override
+                        public void onClick(View v) {
+                            mdialog.dismiss();
+                            Uri dato = Uri.parse("content://name/" + name);
+                            Intent resultado = new Intent(null, dato);
+                            resultado.putExtra("name", name);
                             resultado.putExtra("sendTo", sendTo);
                             setResult(RESULT_OK, resultado);
                             finish();

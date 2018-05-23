@@ -104,8 +104,36 @@ private String userRecursos;
             @Override
             public void onItemClick(AdapterView<?> parent, View view, int position, long id) {
                 final String connectTo = al_friends.get(position).getNombre();
-                userRecursos = connectTo;
-                publish(connectTo, "VAR");
+                mdialog = new Dialog(Profile.this);
+                mdialog.setContentView(R.layout.dialog_confirmsharedarchive);
+                mdialog.show();
+
+                TextView tv = (TextView) mdialog.findViewById(R.id.confirm_archive_tv);
+                tv.setText("What do you want to do?");
+
+                Button yes = (Button) mdialog.findViewById(R.id.confirm_archive_yes);
+                yes.setText("Erase");
+                Button no = (Button) mdialog.findViewById(R.id.confirm_archive_no);
+                no.setText("View archives");
+
+                no.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        mdialog.dismiss();
+                        userRecursos = connectTo;
+                        publish(connectTo, "VAR");
+                    }
+                });
+
+                yes.setOnClickListener(new View.OnClickListener() {
+                    @Override
+                    public void onClick(View v) {
+                        mdialog.dismiss();
+                        mDatabaseHelper.removeData(connectTo);
+                        populateListView();
+                        Toast.makeText(getApplicationContext(), "Friend "+ connectTo + " removed", Toast.LENGTH_LONG).show();
+                    }
+                });
             }
         });
 
@@ -121,7 +149,6 @@ private String userRecursos;
             @Override
             public void onClick(View v) {
                 Intent intent = new Intent(Profile.this, ArchiveExplorer.class);
-                //intent.putExtra("archivesDatabase", mArchivesDatabase);
                 startActivityForResult(intent, 1);
             }
         });
@@ -219,8 +246,18 @@ private String userRecursos;
                         }
                     });
                 }
+            case 3:
+                if(resultCode == Activity.RESULT_OK){
+                    final String name = data.getStringExtra("name");
+                    if(mArchivesDatabase.removeData(name)){
+                        Toast.makeText(getApplicationContext(), "Archive "+ name + " erased", Toast.LENGTH_LONG).show();
+                    }
+                }
             default:
-                cerrarConexion(userRecursos);
+                if(!userRecursos.equals("")){
+                    cerrarConexion(userRecursos);
+                    userRecursos = "";
+                }
         }
     }
 
@@ -264,7 +301,7 @@ private String userRecursos;
                 Intent intent = new Intent(Profile.this, Recursos.class);
                 intent.putExtra("lista", al);
                 intent.putExtra("listener", false);
-                startActivity(intent);
+                startActivityForResult(intent, 3);
                 return true;
 
             case R.id.action_add_friend:
@@ -283,7 +320,6 @@ private String userRecursos;
                             publish(fr, "FR");
                             Toast.makeText(getApplicationContext(), "Friend request sent", Toast.LENGTH_SHORT).show();
                         }else{
-                            //mdialog.dismiss();
                             Toast.makeText(getApplicationContext(), "you're already friend of " + fr, Toast.LENGTH_SHORT).show();
                         }
                     }

@@ -30,7 +30,7 @@ public class ArchivesDatabase extends SQLiteOpenHelper{
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        String dropTable = "DROP IF TABLE EXISTS " + TABLE_NAME;
+        String dropTable = "DROP TABLE IF EXISTS " + TABLE_NAME;
         db.execSQL(dropTable);
         onCreate(db);
     }
@@ -44,6 +44,19 @@ public class ArchivesDatabase extends SQLiteOpenHelper{
         Log.d(TAG, "addData: Adding " + name + " with path " + path + "to " + TABLE_NAME);
 
         long result = db.insert(TABLE_NAME, null, contentValues);
+
+        if(result == -1){
+            return false;
+        }else{
+            return true;
+        }
+    }
+
+    public boolean removeData(String name){
+        SQLiteDatabase db = this.getWritableDatabase();
+        String[] args = new String[] {name};
+
+        long result = db.delete(TABLE_NAME,  "name=?", args);
 
         if(result == -1){
             return false;

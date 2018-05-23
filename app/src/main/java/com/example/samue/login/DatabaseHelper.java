@@ -27,9 +27,22 @@ public class DatabaseHelper extends SQLiteOpenHelper{
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        String dropTable = "DROP IF TABLE EXISTS " + TABLE_NAME;
+        String dropTable = "DROP TABLE IF EXISTS " + TABLE_NAME;
         db.execSQL(dropTable);
         onCreate(db);
+    }
+
+    public boolean removeData(String name){
+        SQLiteDatabase db = this.getWritableDatabase();
+        String[] args = new String[] {name};
+
+        long result = db.delete(TABLE_NAME,  "name=?", args);
+
+        if(result == -1){
+            return false;
+        }else{
+            return true;
+        }
     }
 
     public boolean addData(String item){
