@@ -66,6 +66,7 @@ public class Recursos extends AppCompatActivity {
                             Uri dato = Uri.parse("content://name/" + name);
                             Intent resultado = new Intent(null, dato);
                             resultado.putExtra("name", name);
+                            resultado.putExtra("sendTo", sendTo);
                             setResult(RESULT_OK, resultado);
                             finish();
                         }
@@ -102,7 +103,6 @@ public class Recursos extends AppCompatActivity {
                             Uri dato = Uri.parse("content://name/" + name);
                             Intent resultado = new Intent(null, dato);
                             resultado.putExtra("name", name);
-                            resultado.putExtra("sendTo", sendTo);
                             setResult(RESULT_OK, resultado);
                             finish();
                         }

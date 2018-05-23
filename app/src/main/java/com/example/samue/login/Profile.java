@@ -246,6 +246,7 @@ private String userRecursos;
                         }
                     });
                 }
+                break;
             case 3:
                 if(resultCode == Activity.RESULT_OK){
                     final String name = data.getStringExtra("name");
@@ -480,6 +481,8 @@ private String userRecursos;
             }else{
                 msg.put("split", false);
                 msg.put("lastPiece", true);
+                msg.put("size", aLength);
+                msg.put("inicio", 0);
                 msg.put("archive", s);
                 this.pnRTCClient.transmit(sendTo, msg);
             }
@@ -699,7 +702,6 @@ private String userRecursos;
            }
 
            this.pnRTCClient.transmit(jsonMsg.getString("sendTo"), msg);
-           cerrarConexion(jsonMsg.getString("sendTo"));
        }catch(Exception e){
            e.printStackTrace();
        }
