@@ -254,11 +254,13 @@ private String userRecursos;
                         Toast.makeText(getApplicationContext(), "Archive "+ name + " erased", Toast.LENGTH_LONG).show();
                     }
                 }
+                break;
             default:
                 if(!userRecursos.equals("")){
                     cerrarConexion(userRecursos);
                     userRecursos = "";
                 }
+                break;
         }
     }
 
