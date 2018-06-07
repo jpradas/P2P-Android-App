@@ -1,4 +1,4 @@
 <resources>
-    <string name="app_name">Login</string>
+    <string name="app_name">P2P Sharing</string>
     <string name="title_activity_login_successful">LoginSuccessful</string>
 </resources>
